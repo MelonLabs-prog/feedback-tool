@@ -479,7 +479,7 @@ downloadImgBtn.addEventListener('click', () => {
   const url = lastCanvas.toDataURL('image/png');
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'feedback-tool-progress.png';
+  a.download = 'smart-english-coach-progress.png';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -576,7 +576,7 @@ downloadAudioBtn.addEventListener('click', async () => {
     const url = URL.createObjectURL(mp3Blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'feedback-tool-recording.mp3';
+    a.download = 'smart-english-coach-recording.mp3';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -586,7 +586,7 @@ downloadAudioBtn.addEventListener('click', async () => {
     const url = URL.createObjectURL(audioBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'feedback-tool-recording.webm';
+    a.download = 'smart-english-coach-recording.webm';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
