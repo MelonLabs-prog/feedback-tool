@@ -562,21 +562,16 @@ shareModal.addEventListener('click', (e) => {
 });
 
 // === Image action buttons ===
+
+// Copy Text — copies a formatted text scorecard to clipboard (works everywhere)
 copyImgBtn.addEventListener('click', async () => {
-  if (!lastCanvas) return;
+  if (!lastFeedbackData) return;
   copyImgBtn.disabled = true;
   try {
-    await new Promise((resolve, reject) => {
-      lastCanvas.toBlob(async (blob) => {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          resolve();
-        } catch (e) { reject(e); }
-      }, 'image/png');
-    });
-    shareConfirm.textContent = '✅ Image copied! Paste it in the comments 🎉';
+    await navigator.clipboard.writeText(buildShareText(lastFeedbackData, lastInputType));
+    shareConfirm.textContent = '✅ Copied! Paste it in the comments 🎉';
   } catch {
-    shareConfirm.textContent = '❌ Copy not supported on this device. Use Download instead.';
+    shareConfirm.textContent = '❌ Could not copy. Please try again.';
   } finally {
     copyImgBtn.disabled = false;
     shareConfirm.hidden = false;
@@ -584,19 +579,67 @@ copyImgBtn.addEventListener('click', async () => {
   }
 });
 
-downloadImgBtn.addEventListener('click', () => {
+// Save to Photos (mobile) / Download Image (desktop)
+downloadImgBtn.addEventListener('click', async () => {
   if (!lastCanvas) return;
-  const url = lastCanvas.toDataURL('image/png');
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'smart-english-coach-progress.png';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  shareConfirm.textContent = '📥 Image saved!';
-  shareConfirm.hidden = false;
-  setTimeout(() => { shareConfirm.hidden = true; }, 3000);
+  downloadImgBtn.disabled = true;
+  try {
+    const blob = await new Promise(resolve => lastCanvas.toBlob(resolve, 'image/png'));
+    const file = new File([blob], 'smart-english-coach-progress.png', { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'My Smart English Coach Progress' });
+      shareConfirm.textContent = '✅ Shared!';
+    } else {
+      // Desktop fallback: trigger file download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'smart-english-coach-progress.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      shareConfirm.textContent = '📥 Image saved!';
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      shareConfirm.textContent = '❌ Could not save. Please try again.';
+    }
+  } finally {
+    downloadImgBtn.disabled = false;
+    shareConfirm.hidden = false;
+    setTimeout(() => { shareConfirm.hidden = true; }, 3000);
+  }
 });
+
+// === Share text builder ===
+function buildShareText(data, type) {
+  const scores = data.scores || {};
+  const overall = scores.overall ?? '--';
+  const label = data.scoreLabel ? ` — ${data.scoreLabel}` : '';
+  const scoreFields = type === 'audio' ? AUDIO_SCORES : TEXT_SCORES;
+  const emoji = type === 'audio' ? '🎙️' : '✍️';
+  let text = `${emoji} Smart English Coach: ${overall}/100${label}\n`;
+  text += scoreFields.map(f => `${f.label}: ${scores[f.key] ?? '--'}`).join(' | ');
+
+  const section = (em, item) => {
+    if (!item?.fix) return '';
+    let s = `\n\n${em} ${item.title}`;
+    s += `\n\u201c${item.fix}\u201d`;
+    if (item.note) s += `\n${item.note}`;
+    return s;
+  };
+
+  text += section('✏️ Fix 1 —', data.fixes?.[0]);
+  text += section('✏️ Fix 2 —', data.fixes?.[1]);
+  text += section('🚀 Upgrade —', data.upgrade);
+  if (data.bonus?.fix) {
+    const bonusEmoji = type === 'audio' ? '🗣️ Pronunciation' : '✏️ Clarity';
+    text += section(`${bonusEmoji} —`, data.bonus);
+  }
+  text += `\n\nPractice English with WordBuddy.ai 🌟`;
+  return text;
+}
 
 // === Share card population ===
 function populateShareCard(data, type) {
@@ -679,28 +722,44 @@ async function generateShareImage() {
 downloadAudioBtn.addEventListener('click', async () => {
   if (!audioBlob) return;
   downloadAudioBtn.disabled = true;
-  downloadAudioBtn.textContent = '⏳ Converting to MP3...';
+  downloadAudioBtn.textContent = '⏳ Preparing...';
 
   try {
-    const mp3Blob = await convertToMp3(audioBlob);
-    const url = URL.createObjectURL(mp3Blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'smart-english-coach-recording.mp3';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Mobile: use Web Share API (fixes iOS <a download> limitation)
+    const ext = audioBlob.type.includes('mp4') || audioBlob.type.includes('m4a') ? 'm4a'
+              : audioBlob.type.includes('mpeg') ? 'mp3'
+              : audioBlob.type.includes('wav')  ? 'wav'
+              : 'webm';
+    const audioFile = new File([audioBlob], `smart-english-coach-recording.${ext}`, { type: audioBlob.type });
+    if (navigator.canShare?.({ files: [audioFile] })) {
+      await navigator.share({ files: [audioFile], title: 'My Smart English Coach Recording' });
+      return;
+    }
+
+    // Desktop: convert to MP3 then download
+    downloadAudioBtn.textContent = '⏳ Converting to MP3...';
+    try {
+      const mp3Blob = await convertToMp3(audioBlob);
+      const url = URL.createObjectURL(mp3Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'smart-english-coach-recording.mp3';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      const url = URL.createObjectURL(audioBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smart-english-coach-recording.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   } catch (err) {
-    console.error('MP3 conversion failed:', err);
-    const url = URL.createObjectURL(audioBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'smart-english-coach-recording.webm';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (err.name !== 'AbortError') console.error('Audio download error:', err);
   } finally {
     downloadAudioBtn.disabled = false;
     downloadAudioBtn.textContent = '🎵 Download Audio';
