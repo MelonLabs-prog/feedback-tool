@@ -79,6 +79,11 @@
 
     <!-- Feedback Display -->
     <section id="feedbackSection" class="feedback-section" hidden>
+      <!-- Well Done -->
+      <div id="wellDoneCard" class="card welldone-card">
+        <p id="wellDoneText"></p>
+      </div>
+
       <!-- Score Card -->
       <div id="scoreCard" class="card score-card">
         <div class="score-card-top">
@@ -110,6 +115,9 @@
             <span id="sub4Value" class="sub-score-value"></span>
           </div>
         </div>
+        <div class="word-count-badge">
+          📝 <span id="feedbackWordCount">0</span> words
+        </div>
       </div>
 
       <!-- Transcript / Original Text -->
@@ -120,21 +128,33 @@
 
       <!-- Fixes -->
       <div id="fix1Card" class="card fix-card">
-        <span class="card-badge badge-fix">Simple Fix</span>
+        <span class="card-badge badge-fix">Gentle Fix</span>
         <h3 id="fix1Title"></h3>
-        <div class="fix-content">
-          <p class="fix-label">The Fix:</p>
-          <p id="fix1Fix" class="fix-text"></p>
+        <div class="fix-stacked">
+          <div class="fix-stacked-row fix-stacked-before">
+            <span class="fix-stacked-label">You wrote:</span>
+            <p id="fix1Original" class="fix-stacked-text"></p>
+          </div>
+          <div class="fix-stacked-row fix-stacked-after">
+            <span class="fix-stacked-label">Try this:</span>
+            <p id="fix1Fix" class="fix-stacked-text"></p>
+          </div>
         </div>
         <p id="fix1Note" class="tutor-note"></p>
       </div>
 
       <div id="fix2Card" class="card fix-card">
-        <span class="card-badge badge-fix">Simple Fix</span>
+        <span class="card-badge badge-fix">Gentle Fix</span>
         <h3 id="fix2Title"></h3>
-        <div class="fix-content">
-          <p class="fix-label">The Fix:</p>
-          <p id="fix2Fix" class="fix-text"></p>
+        <div class="fix-stacked">
+          <div class="fix-stacked-row fix-stacked-before">
+            <span class="fix-stacked-label">You wrote:</span>
+            <p id="fix2Original" class="fix-stacked-text"></p>
+          </div>
+          <div class="fix-stacked-row fix-stacked-after">
+            <span class="fix-stacked-label">Try this:</span>
+            <p id="fix2Fix" class="fix-stacked-text"></p>
+          </div>
         </div>
         <p id="fix2Note" class="tutor-note"></p>
       </div>
@@ -143,9 +163,15 @@
       <div id="upgradeCard" class="card upgrade-card">
         <span class="card-badge badge-upgrade">Native Upgrade 🚀</span>
         <h3 id="upgradeTitle"></h3>
-        <div class="fix-content">
-          <p class="fix-label">Native Upgrade:</p>
-          <p id="upgradeFix" class="fix-text"></p>
+        <div class="fix-stacked">
+          <div class="fix-stacked-row fix-stacked-before">
+            <span class="fix-stacked-label">You wrote:</span>
+            <p id="upgradeOriginal" class="fix-stacked-text"></p>
+          </div>
+          <div class="fix-stacked-row fix-stacked-after">
+            <span class="fix-stacked-label">Natives say:</span>
+            <p id="upgradeFix" class="fix-stacked-text"></p>
+          </div>
         </div>
         <p id="upgradeNote" class="tutor-note"></p>
       </div>
@@ -154,11 +180,32 @@
       <div id="bonusCard" class="card bonus-card" hidden>
         <span id="bonusBadge" class="card-badge badge-pron">Pronunciation 🗣️</span>
         <h3 id="bonusTitle"></h3>
-        <div class="fix-content">
-          <p id="bonusFixLabel" class="fix-label">Say it like this:</p>
-          <p id="bonusFix" class="fix-text"></p>
+        <div class="fix-stacked">
+          <div class="fix-stacked-row fix-stacked-before">
+            <span class="fix-stacked-label">You said:</span>
+            <p id="bonusOriginal" class="fix-stacked-text"></p>
+          </div>
+          <div class="fix-stacked-row fix-stacked-after">
+            <span id="bonusFixLabel" class="fix-stacked-label">Say it like this:</span>
+            <p id="bonusFix" class="fix-stacked-text"></p>
+          </div>
         </div>
         <p id="bonusNote" class="tutor-note"></p>
+      </div>
+
+      <!-- Alternative Rephraser (Full Corrected Versions) -->
+      <div id="fullCorrectedCard" class="card fullcorrected-card" hidden>
+        <span class="card-badge badge-corrected">📄 Alternative Rephraser</span>
+        <div class="fc-tabs">
+          <button class="fc-tab active" data-fc="clean">✅ Clean</button>
+          <button class="fc-tab" data-fc="polished">✨ Polished</button>
+          <button class="fc-tab" data-fc="native">🗣️ Native</button>
+        </div>
+        <div class="fc-desc">
+          <p id="fcDesc" class="fc-desc-text">Only grammar &amp; spelling fixed — your words, your voice.</p>
+        </div>
+        <div id="fcContent" class="fc-content"></div>
+        <button id="fcCopyBtn" class="btn btn-small btn-secondary fc-copy-btn">📋 Copy</button>
       </div>
 
       <!-- Share + Try Again -->

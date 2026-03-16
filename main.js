@@ -275,11 +275,63 @@ function getScoreTier(score) {
   return 'score-low';
 }
 
+// === Inline Diff Highlighting ===
+function escapeHTML(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightDiff(original, fixed) {
+  const origWords = original.split(/\s+/);
+  const fixWords = fixed.split(/\s+/);
+  const m = origWords.length, n = fixWords.length;
+
+  // LCS dp
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (origWords[i - 1].toLowerCase() === fixWords[j - 1].toLowerCase()) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // Backtrack
+  const origInLCS = new Set();
+  const fixInLCS = new Set();
+  let i = m, j = n;
+  while (i > 0 && j > 0) {
+    if (origWords[i - 1].toLowerCase() === fixWords[j - 1].toLowerCase()) {
+      origInLCS.add(i - 1);
+      fixInLCS.add(j - 1);
+      i--; j--;
+    } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      i--;
+    } else {
+      j--;
+    }
+  }
+
+  const origHTML = origWords.map((w, idx) =>
+    origInLCS.has(idx) ? escapeHTML(w) : `<span class="fix-hl">${escapeHTML(w)}</span>`
+  ).join(' ');
+
+  const fixHTML = fixWords.map((w, idx) =>
+    fixInLCS.has(idx) ? escapeHTML(w) : `<span class="fix-hl">${escapeHTML(w)}</span>`
+  ).join(' ');
+
+  return { origHTML, fixHTML };
+}
+
 // === Render Feedback ===
 function renderFeedback(data, type) {
   const scores = data.scores || {};
   const overall = typeof scores.overall === 'number' ? scores.overall : null;
   const scoreFields = type === 'audio' ? AUDIO_SCORES : TEXT_SCORES;
+
+  // Well done
+  document.getElementById('wellDoneText').textContent = data.wellDone || 'Great job practicing today!';
 
   // Score circle
   const scoreCircle = document.getElementById('scoreCircle');
@@ -305,31 +357,47 @@ function renderFeedback(data, type) {
     }
   });
 
+  // Word count
+  const wordCount = data.wordCount || (data.transcript ? data.transcript.trim().split(/\s+/).length : 0);
+  document.getElementById('feedbackWordCount').textContent = wordCount;
+
   // Transcript / original text
   const transcriptLabel = document.getElementById('transcriptLabel');
   transcriptLabel.textContent = type === 'text' ? '📝 What you wrote' : '📝 What we heard';
   document.getElementById('transcriptText').textContent = data.transcript || 'No content available.';
 
-  // Fixes
+  // Fixes (stacked before/after with diff highlighting)
   const fix1 = data.fixes?.[0];
   if (fix1) {
     document.getElementById('fix1Title').textContent = fix1.title;
-    document.getElementById('fix1Fix').textContent = fix1.fix;
+    const diff1 = highlightDiff(fix1.original || '', fix1.fix);
+    document.getElementById('fix1Original').innerHTML = diff1.origHTML;
+    document.getElementById('fix1Fix').innerHTML = diff1.fixHTML;
     document.getElementById('fix1Note').textContent = fix1.note;
+    document.getElementById('fix1Card').hidden = false;
+  } else {
+    document.getElementById('fix1Card').hidden = true;
   }
 
   const fix2 = data.fixes?.[1];
   if (fix2) {
     document.getElementById('fix2Title').textContent = fix2.title;
-    document.getElementById('fix2Fix').textContent = fix2.fix;
+    const diff2 = highlightDiff(fix2.original || '', fix2.fix);
+    document.getElementById('fix2Original').innerHTML = diff2.origHTML;
+    document.getElementById('fix2Fix').innerHTML = diff2.fixHTML;
     document.getElementById('fix2Note').textContent = fix2.note;
+    document.getElementById('fix2Card').hidden = false;
+  } else {
+    document.getElementById('fix2Card').hidden = true;
   }
 
-  // Upgrade
+  // Upgrade (stacked before/after with diff highlighting)
   const upgrade = data.upgrade;
   if (upgrade) {
     document.getElementById('upgradeTitle').textContent = upgrade.title;
-    document.getElementById('upgradeFix').textContent = upgrade.fix;
+    const diffUp = highlightDiff(upgrade.original || '', upgrade.fix);
+    document.getElementById('upgradeOriginal').innerHTML = diffUp.origHTML;
+    document.getElementById('upgradeFix').innerHTML = diffUp.fixHTML;
     document.getElementById('upgradeNote').textContent = upgrade.note;
   }
 
@@ -338,7 +406,9 @@ function renderFeedback(data, type) {
   const bonusCard = document.getElementById('bonusCard');
   if (bonus) {
     document.getElementById('bonusTitle').textContent = bonus.title;
-    document.getElementById('bonusFix').textContent = bonus.fix;
+    const diffBonus = highlightDiff(bonus.original || '', bonus.fix);
+    document.getElementById('bonusOriginal').innerHTML = diffBonus.origHTML;
+    document.getElementById('bonusFix').innerHTML = diffBonus.fixHTML;
     document.getElementById('bonusNote').textContent = bonus.note;
 
     if (type === 'audio') {
@@ -357,8 +427,48 @@ function renderFeedback(data, type) {
     bonusCard.hidden = true;
   }
 
+  // Full corrected versions (Alternative Rephraser)
+  const fc = data.fullCorrected;
+  if (fc) {
+    window._fcData = fc;
+    window._fcActive = 'clean';
+    document.getElementById('fcContent').textContent = fc.clean || '';
+    document.getElementById('fcDesc').textContent = 'Only grammar & spelling fixed — your words, your voice.';
+    document.querySelectorAll('.fc-tab').forEach(t => t.classList.toggle('active', t.dataset.fc === 'clean'));
+    document.getElementById('fullCorrectedCard').hidden = false;
+  } else {
+    document.getElementById('fullCorrectedCard').hidden = true;
+  }
+
   feedbackSection.hidden = false;
 }
+
+// === Full Corrected Version Tabs ===
+const fcDescs = {
+  clean: 'Only grammar & spelling fixed — your words, your voice.',
+  polished: 'Smoother flow with minimal tweaks — still your style.',
+  native: 'How a native speaker might say the same ideas.',
+};
+document.querySelectorAll('.fc-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const key = tab.dataset.fc;
+    if (!window._fcData) return;
+    document.querySelectorAll('.fc-tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.getElementById('fcContent').textContent = window._fcData[key] || '';
+    document.getElementById('fcDesc').textContent = fcDescs[key] || '';
+    window._fcActive = key;
+  });
+});
+
+document.getElementById('fcCopyBtn').addEventListener('click', async () => {
+  const text = document.getElementById('fcContent').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('fcCopyBtn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+  } catch { /* ignore */ }
+});
 
 // === Error ===
 function showMicError() {
