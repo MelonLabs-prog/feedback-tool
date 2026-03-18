@@ -1,5 +1,5 @@
 import html2canvas from 'html2canvas';
-import { inject } from '@vercel/analytics';
+import { inject, track } from '@vercel/analytics';
 
 inject();
 
@@ -219,6 +219,7 @@ audioSubmitBtn.addEventListener('click', async () => {
 // === Unified Submit ===
 async function submitFeedback(type, payload) {
   lastInputType = type;
+  track('submission_started', { type });
 
   writeSubmitBtn.disabled = true;
   audioSubmitBtn.disabled = true;
@@ -246,6 +247,7 @@ async function submitFeedback(type, payload) {
 
     const data = await res.json();
     lastFeedbackData = data;
+    track('feedback_received', { overall_score: data.scores?.overall, type });
     renderFeedback(data, type);
   } catch (err) {
     showError(err.message || 'Something went wrong. Please try again.');
@@ -526,6 +528,26 @@ resetBtn.addEventListener('click', resetAll);
 errorResetBtn.addEventListener('click', resetAll);
 reRecordBtn.addEventListener('click', resetAll);
 
+// === Share Nudge ===
+const nudgeCopyBtn = document.getElementById('nudgeCopyBtn');
+const nudgeConfirm = document.getElementById('nudgeConfirm');
+
+nudgeCopyBtn.addEventListener('click', async () => {
+  if (!lastFeedbackData) return;
+  nudgeCopyBtn.disabled = true;
+  try {
+    await navigator.clipboard.writeText(buildShareText(lastFeedbackData, lastInputType));
+    track('share_text_copied');
+    nudgeConfirm.textContent = '✅ Copied! Paste it in the comments 🎉';
+  } catch {
+    nudgeConfirm.textContent = '❌ Could not copy. Please try again.';
+  } finally {
+    nudgeCopyBtn.disabled = false;
+    nudgeConfirm.hidden = false;
+    setTimeout(() => { nudgeConfirm.hidden = true; }, 4000);
+  }
+});
+
 // === Share Modal ===
 const shareBtn = document.getElementById('shareBtn');
 const shareModal = document.getElementById('shareModal');
@@ -572,6 +594,7 @@ copyImgBtn.addEventListener('click', async () => {
   copyImgBtn.disabled = true;
   try {
     await navigator.clipboard.writeText(buildShareText(lastFeedbackData, lastInputType));
+    track('share_text_copied');
     shareConfirm.textContent = '✅ Copied! Paste it in the comments 🎉';
   } catch {
     shareConfirm.textContent = '❌ Could not copy. Please try again.';
@@ -591,6 +614,7 @@ downloadImgBtn.addEventListener('click', async () => {
     const file = new File([blob], 'smart-english-coach-progress.png', { type: 'image/png' });
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], title: 'My Smart English Coach Progress' });
+      track('share_image_downloaded');
       shareConfirm.textContent = '✅ Shared!';
     } else {
       // Desktop fallback: trigger file download
@@ -602,6 +626,7 @@ downloadImgBtn.addEventListener('click', async () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      track('share_image_downloaded');
       shareConfirm.textContent = '📥 Image saved!';
     }
   } catch (err) {
