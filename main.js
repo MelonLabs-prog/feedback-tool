@@ -44,6 +44,13 @@ if (isMobile && !cameFromApp) {
   inputTabs.style.display = 'none';
   writeSection.style.display = 'none';
   speakSection.style.display = 'none';
+
+  // Forward the access key to the Play Now link so the middleware doesn't block it
+  const currentKey = new URLSearchParams(window.location.search).get('key');
+  if (currentKey) {
+    const playLink = document.getElementById('playNowLink');
+    playLink.href = `?src=app&key=${encodeURIComponent(currentKey)}`;
+  }
 }
 
 mobileUploadBtn.addEventListener('click', () => fileInput.click());
